@@ -1,0 +1,220 @@
+!pip install opencv-python
+!pip install face-recognition
+!pip install numpy
+!pip install pandas
+!pip install scikit-learn
+import os
+import pandas as pd
+import cv2
+
+# Define your dataset path and Excel file path
+dataset_path = 'C:/Users/Asus/Desktop/Images'
+excel_file = 'C:/Users/Asus/Downloads/metadata.xlsx'
+
+# Load the Excel file into a DataFrame
+df = pd.read_excel(excel_file)
+
+# Ensure the 'Image' column contains valid paths
+for index, row in df.iterrows():
+    img_path = os.path.join(dataset_path, str(row['Image']))  # Ensure row['Image'] is converted to string
+    img = cv2.imread(img_path)
+    
+    if img is None:
+        print(f"Unable to read image: {img_path}")
+    else:
+        print(f"Successfully read image: {img_path}")
+import os
+import pandas as pd
+import dlib
+import numpy as np
+import cv2
+
+# Define the path to your dataset
+dataset_path = 'C:/Users/Asus/Desktop/Images'
+excel_file = 'C:/Users/Asus/Downloads/metadata.xlsx'
+
+shape_predictor_path = 'C:/Users/Asus/Downloads/shape_predictor_68_face_landmarks.dat'
+face_recognition_model_path = 'C:/Users/Asus/Downloads/dlib_face_recognition_resnet_model_v1.dat'
+
+# Load the Excel file
+df = pd.read_excel(excel_file)
+
+detector = dlib.get_frontal_face_detector()
+sp = dlib.shape_predictor(shape_predictor_path)
+facerec = dlib.face_recognition_model_v1(face_recognition_model_path)
+
+# Initialize lists to hold image encodings and labels
+encodings = []
+labels = []
+
+# Loop through each row in the dataframe
+for index, row in df.iterrows():
+    img_path = os.path.join(dataset_path, row['Image'])  # Combine dataset path with image path
+    img = cv2.imread(img_path)
+    
+    if img is None:
+        print(f"Failed to read image: {img_path}")
+        continue  # Skip to the next image if loading fails
+    
+    rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    
+    detections = detector(rgb_img, 1)
+    for k, d in enumerate(detections):
+        shape = sp(rgb_img, d)
+        face_descriptor = facerec.compute_face_descriptor(rgb_img, shape)
+        encodings.append(np.array(face_descriptor))
+        name = row['Name']
+        reg_num = row['Registration number ']
+        age = row['Age']
+        labels.append((name, reg_num, age))
+
+# Convert lists to numpy arrays
+encodings = np.array(encodings)
+labels = np.array(labels)
+
+# Save encodings and labels for later use
+np.save('encodings.npy', encodings)
+np.save('labels.npy', labels)
+
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+
+# Assuming labels and encodings are already loaded or defined correctly
+
+# Encode the labels
+le_name = LabelEncoder()
+le_reg_num = LabelEncoder()
+le_age = LabelEncoder()
+
+names = le_name.fit_transform(labels[:, 0])
+reg_nums = le_reg_num.fit_transform(labels[:, 1])
+ages = le_age.fit_transform(labels[:, 2])
+
+# Train-test split for each target
+X_train, X_test, y_train_name, y_test_name = train_test_split(encodings, names, test_size=0.2, random_state=42)
+_, _, y_train_reg_num, y_test_reg_num = train_test_split(encodings, reg_nums, test_size=0.2, random_state=42)
+_, _, y_train_age, y_test_age = train_test_split(encodings, ages, test_size=0.2, random_state=42)
+
+# Train the models
+clf_name = SVC(kernel='linear', probability=True)
+clf_name.fit(X_train, y_train_name)
+
+clf_reg_num = SVC(kernel='linear', probability=True)
+clf_reg_num.fit(X_train, y_train_reg_num)
+
+clf_age = SVC(kernel='linear', probability=True)
+clf_age.fit(X_train, y_train_age)
+
+# Test the models
+y_pred_name = clf_name.predict(X_test)
+accuracy_name = accuracy_score(y_test_name, y_pred_name)
+print(f'Name model accuracy: {accuracy_name * 100:.2f}%')
+
+y_pred_reg_num = clf_reg_num.predict(X_test)
+accuracy_reg_num = accuracy_score(y_test_reg_num, y_pred_reg_num)
+print(f'Registration number model accuracy: {accuracy_reg_num * 100:.2f}%')
+
+y_pred_age = clf_age.predict(X_test)
+accuracy_age = accuracy_score(y_test_age, y_pred_age)
+print(f'Age model accuracy: {accuracy_age * 100:.2f}%')
+
+mport cv2
+import dlib
+import numpy as np
+from sklearn.svm import SVC
+from sklearn.preprocessing import LabelEncoder
+
+# Load the trained models
+clf_name = SVC(kernel='linear', probability=True)
+clf_name.fit(X_train, y_train_name)
+
+clf_reg_num = SVC(kernel='linear', probability=True)
+clf_reg_num.fit(X_train, y_train_reg_num)
+
+clf_age = SVC(kernel='linear', probability=True)
+clf_age.fit(X_train, y_train_age)
+
+# Load label encoders
+encodings = np.load('encodings.npy')
+labels = np.load('labels.npy')
+
+# Initialize label encoders
+le_name = LabelEncoder()
+le_reg_num = LabelEncoder()
+le_age = LabelEncoder()
+
+# Fit label encoders with corresponding labels from your dataset
+names = labels[:, 0]
+reg_nums = labels[:, 1]
+ages = labels[:, 2]
+
+le_name.fit(names)
+le_reg_num.fit(reg_nums)
+le_age.fit(ages)
+
+# Initialize dlib's face detector and face recognition model
+detector = dlib.get_frontal_face_detector()
+sp = dlib.shape_predictor('shape_predictor_68_face_landmarks.dat')
+facerec = dlib.face_recognition_model_v1('dlib_face_recognition_resnet_model_v1.dat')
+
+# Start video capture
+video_capture = cv2.VideoCapture(0)
+
+while True:
+    # Capture frame-by-frame
+    ret, frame = video_capture.read()
+    
+    # Convert the image to RGB
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    
+    # Detect faces in the frame
+    detections = detector(rgb_frame, 1)
+    
+    for k, d in enumerate(detections):
+        shape = sp(rgb_frame, d)
+        face_descriptor = facerec.compute_face_descriptor(rgb_frame, shape)
+        face_encoding = np.array(face_descriptor)
+        
+        # Predict using the classifiers
+        name_label = clf_name.predict([face_encoding])[0]
+        reg_num_label = clf_reg_num.predict([face_encoding])[0]
+        age_label = clf_age.predict([face_encoding])[0]
+        
+        name_prob = clf_name.predict_proba([face_encoding])[0].max()
+        reg_num_prob = clf_reg_num.predict_proba([face_encoding])[0].max()
+        age_prob = clf_age.predict_proba([face_encoding])[0].max()
+        
+        # Threshold for unknown person (you can tune this threshold)
+        threshold = 0.25
+        
+        if name_prob < threshold or reg_num_prob < threshold or age_prob < threshold:
+            # If any classifier's prediction confidence is below the threshold, mark as "Unknown"
+            name = "Unknown"
+            reg_num = "Unknown"
+            age = "Unknown"
+        else:
+            # Decode the labels
+            name = le_name.inverse_transform([name_label])[0]
+            reg_num = le_reg_num.inverse_transform([reg_num_label])[0]
+            age = le_age.inverse_transform([age_label])[0]
+        
+        # Display the results
+        left, top, right, bottom = d.left(), d.top(), d.right(), d.bottom()
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+        cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
+        font = cv2.FONT_HERSHEY_DUPLEX
+        text = f'{name} - {reg_num} - Age: {age}'
+        cv2.putText(frame, text, (left + 6, bottom - 6), font, 0.5, (255, 255, 255), 1)
+    # Display the resulting frame
+    cv2.imshow('Video', frame)
+    
+    # Break the loop on 'q' key press
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Release the capture
+video_capture.release()
+cv2.destroyAllWindows()
