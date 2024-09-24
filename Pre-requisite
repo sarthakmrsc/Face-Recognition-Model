@@ -1,0 +1,4 @@
+1. Make a file for the pictures to be used as the dataset and then put the pictures inside that dataset.
+2. Make an excel file for .xlsx file part and name it as "metadata" [I have named it metadata for my own understanding you can name it whatever suits you]
+3. Make sure to change the threshold values to get better results. [I have set it to 0.25 since my dataset is less]
+4. Use atleast 1000 picture dataset to get good results.
